@@ -24,7 +24,17 @@ body {
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
 
-.paper { max-width: 1180px; margin: 0 auto; padding-block: 20px 28px; }
+.paper {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding-block: 20px 28px;
+  /* Fill the screen so the footer sits at the bottom, not mid-page */
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+.paper > .layout { flex: 1; }
 
 /* ── Masthead ── */
 .masthead {
@@ -81,7 +91,7 @@ body {
   position: relative;
   width: 100%;
   --fit-h: calc(100vh - 220px);
-  max-width: min(640px, calc(var(--fit-h) * var(--ar, 0.707)));
+  max-width: calc(var(--fit-h) * var(--ar, 0.707));
   aspect-ratio: var(--ar, 0.707);
   background: #fff;
   box-shadow: 0 1px 0 #0002, 0 18px 40px -18px #0006;
@@ -251,14 +261,24 @@ input[type="radio"], input[type="checkbox"] { accent-color: var(--navy); width: 
   .masthead { grid-template-columns: 110px 1fr 110px; }
 }
 
-/* ── Tablets (portrait) / phones: stack the frame above the controls ── */
+/* ── Tablets (portrait): side by side, slimmer sidebar so the frame gets the room ── */
+@media (orientation: portrait) and (min-width: 821px) and (max-width: 1200px) {
+  .layout { grid-template-columns: minmax(0, 1fr) 240px; gap: 18px; }
+  .side { padding-left: 16px; }
+  .panel h2 { font-size: 30px; }
+  .btn { font-size: 15px; padding: 16px 12px; }
+  .btn-ghost { font-size: 13px; padding: 12px; }
+  .layout { align-items: center; } /* centre the frame vertically in the spare height */
+}
+
+/* ── Phones / small tablets: stack the frame above the controls ── */
 @media (max-width: 820px) {
-  body { padding-bottom: 64px; } /* room for the fixed full screen button */
+  .paper { padding-bottom: 72px; } /* room for the fixed full screen button */
   .layout { grid-template-columns: 1fr; gap: 18px; margin-top: 16px; }
   .side { border-left: 0; padding-left: 0; border-top: 1px solid var(--rule); padding-top: 18px; }
   /* Size the frame so it fits on screen, with the capture button just below it */
-  .stage { --fit-h: calc(100vh - 230px); max-width: calc(var(--fit-h) * var(--ar, 0.707)); }
-  @supports (height: 100svh) { .stage { --fit-h: calc(100svh - 230px); } }
+  .stage { --fit-h: calc(100vh - 260px); max-width: calc(var(--fit-h) * var(--ar, 0.707)); }
+  @supports (height: 100svh) { .stage { --fit-h: calc(100svh - 260px); } }
   .masthead { grid-template-columns: 1fr; }
   .ear { display: none; }
   .dateline span:nth-child(2) { display: none; }
@@ -271,7 +291,7 @@ input[type="radio"], input[type="checkbox"] { accent-color: var(--navy); width: 
 /* ── Phones ── */
 @media (max-width: 520px) {
   body { font-size: 15px; }
-  .paper { padding-block: 12px 20px; }
+  .paper { padding-block: 12px 72px; }
   .title { font-size: clamp(30px, 11vw, 44px); }
   .dateline { margin-top: 10px; font-size: 10px; letter-spacing: 0.02em; }
   .layout { margin-top: 12px; }
@@ -287,7 +307,6 @@ input[type="radio"], input[type="checkbox"] { accent-color: var(--navy); width: 
 
 /* ── Phones held sideways: keep side-by-side, frame fills the height ── */
 @media (orientation: landscape) and (max-height: 520px) {
-  body { padding-bottom: 0; }
   .paper { padding-block: 8px 16px; }
   .masthead { grid-template-columns: 1fr; }
   .ear, .dateline { display: none; }
