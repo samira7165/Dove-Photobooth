@@ -120,6 +120,17 @@ body {
   gap: 12px;
 }
 
+.controls-row { flex-direction: row; }
+.controls-row .btn { flex: 1; }
+
+.save-error {
+  margin: -4px 0 0;
+  max-width: 420px;
+  text-align: center;
+  font-size: 14px;
+  color: #9b2c1f;
+}
+
 .btn {
   appearance: none;
   display: block;
@@ -141,6 +152,7 @@ body {
 .btn-gold { background: var(--gold); color: var(--ink); box-shadow: 4px 4px 0 var(--ink); }
 .btn-gold:active { box-shadow: 1px 1px 0 var(--ink); }
 .btn-ghost { background: transparent; color: var(--ink); font-size: 13px; padding: 12px; }
+.btn-ghost.btn-big { font-size: 18px; padding: 20px 16px; }   /* ghost button at full size, e.g. Retake */
 @media (hover: hover) { .btn-ghost:hover { background: #0000000a; } }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
@@ -241,10 +253,10 @@ a.btn { text-decoration: none; }
 
 /* ── Phones ── */
 @media (max-width: 520px) {
-  .btn { font-size: 16px; padding: 18px 12px; }
+  .btn, .btn-ghost.btn-big { font-size: 16px; padding: 18px 12px; }
   .code { font-size: 34px; }
   .code-help { font-size: 13px; }
-  .booth.is-result .stage { --reserve: 310px; }
+  .booth.is-result .stage { --reserve: 330px; }
 }
 
 /* ── Short landscape screens (phones held sideways): controls beside the template ── */

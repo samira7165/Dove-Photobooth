@@ -13,6 +13,15 @@ const els = {
 };
 
 let photoUrl = null;
+let foundCode = null;
+
+// Analytics for the admin dashboard; never blocks or breaks the page
+function track(type, code) {
+  fetch("api/track", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type, code }), keepalive: true,
+  }).catch(() => {});
+}
 
 // Upper-case and drop spaces/dashes people sometimes type
 const clean = (s) => s.toUpperCase().replace(/[\s-]/g, "");
@@ -44,6 +53,7 @@ async function find(code) {
     els.photo.src = photoUrl;
     els.downloadLink.href = photoUrl;
     els.downloadLink.download = `dove-times-${code}.jpg`;
+    foundCode = code;
     els.found.hidden = false;
     showMessage("");
     history.replaceState(null, "", "?code=" + code);
@@ -64,6 +74,9 @@ els.form.addEventListener("submit", (e) => {
   e.preventDefault();
   find(clean(els.input.value));
 });
+
+els.downloadLink.addEventListener("click", () => track("download", foundCode));
+track("visit");
 
 // /download?code=XXXXXX opens straight to the photo
 const fromLink = new URLSearchParams(location.search).get("code");

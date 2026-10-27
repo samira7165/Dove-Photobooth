@@ -28,21 +28,27 @@
       <button class="btn btn-main" id="captureBtn" type="button">Take photo</button>
     </div>
 
-    <!-- Step: result -->
+    <!-- Step: check the photo. Nothing is saved until OK -->
+    <div class="controls controls-row" id="confirmPanel" hidden>
+      <button class="btn btn-ghost btn-big" id="retakeBtn" type="button">Retake</button>
+      <button class="btn btn-main" id="okBtn" type="button">OK</button>
+    </div>
+    <p class="save-error" id="saveError" role="alert" hidden>
+      Couldn't save the photo. Check the connection and press OK again.
+    </p>
+
+    <!-- Step: saved — print + download code -->
     <div class="controls" id="resultPanel" hidden>
       <button class="btn btn-main btn-gold" id="printBtn" type="button">Print</button>
       <div class="code-box">
         <p class="code-label">Your photo code</p>
         <p class="code" id="photoCode"></p>
-        <p class="code-help" id="codeHelp">
+        <p class="code-help">
           Save this code: take a picture of it or write it down.
           To download your photo, go to <strong class="code-url" id="downloadUrl"></strong> and enter the code.
         </p>
-        <p class="code-help code-error" id="codeError" hidden>
-          This photo couldn't be saved for download. You can still print it.
-        </p>
       </div>
-      <button class="btn btn-ghost" id="retakeBtn" type="button">Take another photo</button>
+      <button class="btn btn-ghost" id="newPhotoBtn" type="button">Take another photo</button>
     </div>
   </main>
 

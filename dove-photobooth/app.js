@@ -25,19 +25,29 @@ const els = {
   booth: $("booth"), stage: $("stage"), hole: $("hole"), video: $("video"), camMsg: $("camMsg"),
   frameImg: $("frameImg"), resultImg: $("resultImg"),
   countdown: $("countdown"), flash: $("flash"),
-  shootPanel: $("shootPanel"), resultPanel: $("resultPanel"),
-  captureBtn: $("captureBtn"), printBtn: $("printBtn"), retakeBtn: $("retakeBtn"),
-  photoCode: $("photoCode"), codeHelp: $("codeHelp"), codeError: $("codeError"), downloadUrl: $("downloadUrl"),
+  shootPanel: $("shootPanel"), confirmPanel: $("confirmPanel"), resultPanel: $("resultPanel"),
+  captureBtn: $("captureBtn"), okBtn: $("okBtn"), retakeBtn: $("retakeBtn"), saveError: $("saveError"),
+  printBtn: $("printBtn"), newPhotoBtn: $("newPhotoBtn"),
+  photoCode: $("photoCode"), downloadUrl: $("downloadUrl"),
   printImg: $("printImg"), work: $("work"),
 };
 
 const state = {
   frame: null,        // { img, w, h, hole: {x,y,w,h} }
   stream: null,
+  resultBlob: null,   // photo waiting for OK / Retake
   resultUrl: null,
-  shot: 0,            // bumps on every photo, so a slow upload can't show a code on the next one
+  code: null,         // code of the saved photo on screen
   busy: false,
 };
+
+// Analytics for the admin dashboard; never blocks or breaks the booth
+function track(type, code) {
+  fetch("api/track", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type, code }), keepalive: true,
+  }).catch(() => {});
+}
 
 /* ── Saving photos for download (server.js) ── */
 async function uploadPhoto(blob) {
@@ -195,41 +205,55 @@ async function compose(source, srcW, srcH, flip) {
   ctx.drawImage(img, 0, 0, w, h);
 
   const blob = await new Promise((res) => c.toBlob(res, "image/jpeg", CONFIG.jpegQuality));
-  showResult(blob);
+  showPreview(blob);
 }
 
-function showResult(blob) {
+// Which step is on screen: "shoot" → "confirm" (OK / Retake) → "result" (Print + code)
+function showStep(step) {
+  els.shootPanel.hidden = step !== "shoot";
+  els.confirmPanel.hidden = step !== "confirm";
+  els.resultPanel.hidden = step !== "result";
+  els.resultImg.hidden = step === "shoot";
+  els.saveError.hidden = true;
+  els.booth.classList.toggle("is-result", step === "result");   // shrinks the template to make room
+}
+
+// Show the photo in the template; nothing is saved until OK
+function showPreview(blob) {
   if (state.resultUrl) URL.revokeObjectURL(state.resultUrl);
+  state.resultBlob = blob;
   state.resultUrl = URL.createObjectURL(blob);
+  state.code = null;
   els.resultImg.src = state.resultUrl;
   els.printImg.src = state.resultUrl;
-  els.resultImg.hidden = false;
-  els.shootPanel.hidden = true;
-  els.resultPanel.hidden = false;
-  els.booth.classList.add("is-result");   // shrinks the template to make room
-
-  els.photoCode.textContent = "······";
-  els.codeHelp.hidden = false;
-  els.codeError.hidden = true;
-  const shot = ++state.shot;
-  uploadPhoto(blob).then(
-    (code) => { if (shot === state.shot) els.photoCode.textContent = code; },
-    (e) => {
-      console.error(e);
-      if (shot !== state.shot) return;
-      els.photoCode.textContent = "—";
-      els.codeHelp.hidden = true;
-      els.codeError.hidden = false;
-    },
-  );
+  showStep("confirm");
 }
 
-function retake() {
-  els.resultImg.hidden = true;
-  els.resultPanel.hidden = true;
-  els.shootPanel.hidden = false;
-  els.booth.classList.remove("is-result");
-  state.shot++;
+// OK: save the photo to the server, then show Print and the download code
+async function confirmPhoto() {
+  if (state.busy || !state.resultBlob) return;
+  state.busy = true;
+  els.okBtn.disabled = els.retakeBtn.disabled = true;
+  els.okBtn.textContent = "Saving…";
+  els.saveError.hidden = true;
+  try {
+    state.code = await uploadPhoto(state.resultBlob);
+    els.photoCode.textContent = state.code;
+    showStep("result");
+  } catch (e) {
+    console.error(e);
+    els.saveError.hidden = false;
+  } finally {
+    els.okBtn.disabled = els.retakeBtn.disabled = false;
+    els.okBtn.textContent = "OK";
+    state.busy = false;
+  }
+}
+
+// Retake (photo is discarded) or Take another photo (next guest)
+function backToCamera() {
+  state.resultBlob = null;
+  showStep("shoot");
 }
 
 /* ── Countdown + capture ── */
@@ -258,8 +282,9 @@ async function capture() {
 
 /* ── Print ── */
 async function print() {
-  if (!state.resultUrl) return;
+  if (!state.code) return;
   if (!els.printImg.complete) await new Promise((r) => (els.printImg.onload = r));
+  track("print", state.code);
   window.print();
 }
 
@@ -280,7 +305,9 @@ async function init() {
   await startCamera();
 
   els.captureBtn.addEventListener("click", capture);
-  els.retakeBtn.addEventListener("click", retake);
+  els.okBtn.addEventListener("click", confirmPhoto);
+  els.retakeBtn.addEventListener("click", backToCamera);
+  els.newPhotoBtn.addEventListener("click", backToCamera);
   els.printBtn.addEventListener("click", print);
 
   // Kiosk shortcut: Space or Enter takes the photo

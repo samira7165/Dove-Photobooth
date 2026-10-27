@@ -37,6 +37,24 @@ Host settings:
 
 Without a persistent volume most hosts wipe saved files on every restart or redeploy, and guests' photos would disappear.
 
+## Admin dashboard
+
+Open **/admin** (e.g. http://localhost:8000/admin) and log in.
+
+The first time the server starts it creates an `admin` account and prints its password in the terminal. Change it straight away with **Change password** at the top of the dashboard. To choose the first login yourself, start the server with `ADMIN_USER` and `ADMIN_PASSWORD` set.
+
+| Role | Can |
+| --- | --- |
+| **viewer** | See analytics |
+| **staff** | Viewer + see all photos, download single photos, export data (CSV) and all photos (ZIP) |
+| **admin** | Staff + delete photos, add/remove users, change roles, reset passwords |
+
+- **Overview:** photos taken, prints, download page visits, code lookups (and wrong codes), downloads, % of photos downloaded, photos per day and by hour. Filter by today / 7 days / 30 days / all time.
+- **Submissions:** every photo with its code, time, lookups, downloads and prints. Search by code, sort, download, delete (admin).
+- **Users:** add people and pick their role (admin only).
+
+Accounts, sessions and analytics are kept in `data/` (`users.json`, `db.json`). Passwords are stored hashed. Set `DATA_DIR` to keep it on a persistent disk, like `PHOTOS_DIR`. Back up `data/` and `photos/` together.
+
 ## How it works
 
 1. The frame is a PNG with a **transparent window** where the photo goes.

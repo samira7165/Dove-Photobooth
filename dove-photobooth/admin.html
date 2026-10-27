@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <title>Admin · The Dove Times</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,900;1,700&family=Old+Standard+TT:wght@400;700&display=swap">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body class="admin">
+
+  <!-- ── Login ── -->
+  <main class="login" id="loginView" hidden>
+    <form class="login-card" id="loginForm">
+      <h1 class="lookup-title">THE <em>Dove</em> TIMES</h1>
+      <p class="lookup-kicker">Admin desk</p>
+      <label class="field">
+        <span>Username</span>
+        <input id="loginUser" name="username" autocomplete="username" autocapitalize="off" spellcheck="false" required>
+      </label>
+      <label class="field">
+        <span>Password</span>
+        <input id="loginPass" name="password" type="password" autocomplete="current-password" required>
+      </label>
+      <button class="btn btn-main" type="submit">Log in</button>
+      <p class="form-msg is-error" id="loginMsg" role="alert"></p>
+    </form>
+  </main>
+
+  <!-- ── Dashboard ── -->
+  <div class="dash" id="dashView" hidden>
+    <header class="topbar">
+      <div class="brand">THE <em>Dove</em> TIMES <span>Admin</span></div>
+      <nav class="tabs" role="tablist" aria-label="Sections">
+        <button class="tab" role="tab" data-tab="overview" aria-selected="true">Overview</button>
+        <button class="tab" role="tab" data-tab="submissions" data-role="staff">Submissions</button>
+        <button class="tab" role="tab" data-tab="users" data-role="admin">Users</button>
+      </nav>
+      <div class="account">
+        <span class="who" id="who"></span>
+        <span class="role-badge" id="whoRole"></span>
+        <button class="link-btn" id="pwBtn" type="button">Change password</button>
+        <button class="link-btn" id="logoutBtn" type="button">Log out</button>
+      </div>
+    </header>
+
+    <!-- Overview -->
+    <section class="panel-view" id="tab-overview" role="tabpanel">
+      <div class="toolbar">
+        <div class="seg" role="group" aria-label="Date range" id="rangeSeg">
+          <button type="button" data-range="1">Today</button>
+          <button type="button" data-range="7">7 days</button>
+          <button type="button" data-range="30">30 days</button>
+          <button type="button" data-range="0" aria-pressed="true">All time</button>
+        </div>
+        <button class="link-btn" id="refreshBtn" type="button">Refresh</button>
+      </div>
+
+      <div class="tiles" id="tiles"></div>
+
+      <div class="charts">
+        <figure class="chart-card">
+          <figcaption>
+            <h2>Photos taken per day</h2>
+            <p id="dayChartSub"></p>
+          </figcaption>
+          <div class="chart" id="dayChart"></div>
+          <details class="chart-table"><summary>Show as table</summary><div id="dayTable"></div></details>
+        </figure>
+        <figure class="chart-card">
+          <figcaption>
+            <h2>Photos taken by hour of day</h2>
+            <p>When the booth is busiest</p>
+          </figcaption>
+          <div class="chart" id="hourChart"></div>
+          <details class="chart-table"><summary>Show as table</summary><div id="hourTable"></div></details>
+        </figure>
+      </div>
+      <div class="tooltip" id="tooltip" hidden></div>
+    </section>
+
+    <!-- Submissions -->
+    <section class="panel-view" id="tab-submissions" role="tabpanel" hidden>
+      <div class="toolbar">
+        <input class="search" id="searchInput" type="search" placeholder="Search code" autocomplete="off" spellcheck="false" aria-label="Search by code">
+        <select id="sortSelect" aria-label="Sort">
+          <option value="new">Newest first</option>
+          <option value="old">Oldest first</option>
+          <option value="downloads">Most downloaded</option>
+          <option value="notdl">Not downloaded yet</option>
+        </select>
+        <span class="spacer"></span>
+        <a class="btn btn-ghost btn-sm" href="api/admin/export.csv" download>Export data (CSV)</a>
+        <a class="btn btn-main btn-sm" href="api/admin/export.zip" download>Download all photos (ZIP)</a>
+      </div>
+      <p class="count-line" id="subCount"></p>
+      <div class="grid" id="photoGrid"></div>
+      <div class="pager" id="pager"></div>
+    </section>
+
+    <!-- Users -->
+    <section class="panel-view" id="tab-users" role="tabpanel" hidden>
+      <div class="users-layout">
+        <div class="card">
+          <h2>Team</h2>
+          <table class="table" id="usersTable">
+            <thead><tr><th>Username</th><th>Role</th><th>Added</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <form class="card" id="addUserForm">
+          <h2>Add a user</h2>
+          <label class="field"><span>Username</span>
+            <input name="username" autocomplete="off" autocapitalize="off" spellcheck="false" required></label>
+          <label class="field"><span>Password</span>
+            <input name="password" type="password" autocomplete="new-password" minlength="8" required></label>
+          <label class="field"><span>Role</span>
+            <select name="role">
+              <option value="viewer">Viewer: analytics only</option>
+              <option value="staff" selected>Staff: analytics, submissions, downloads</option>
+              <option value="admin">Admin: everything, incl. users and deleting</option>
+            </select></label>
+          <button class="btn btn-main btn-sm" type="submit">Add user</button>
+          <p class="form-msg" id="addUserMsg" role="status"></p>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  <!-- Change own password -->
+  <dialog class="modal" id="pwDialog">
+    <form id="pwForm" method="dialog">
+      <h2>Change password</h2>
+      <label class="field"><span>Current password</span>
+        <input name="current" type="password" autocomplete="current-password" required></label>
+      <label class="field"><span>New password</span>
+        <input name="next" type="password" autocomplete="new-password" minlength="8" required></label>
+      <p class="form-msg" id="pwMsg" role="status"></p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost btn-sm" type="button" id="pwCancel">Cancel</button>
+        <button class="btn btn-main btn-sm" type="submit" value="save">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="admin.js"></script>
+</body>
+</html>
