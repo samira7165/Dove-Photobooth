@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Get Your Photo · The Dove Times</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,900;1,700;1,900&family=Old+Standard+TT:wght@400;700&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="lookup">
+    <h1 class="lookup-title">THE <em>Dove</em> TIMES</h1>
+    <p class="lookup-kicker">Get your front page</p>
+
+    <form class="lookup-form" id="findForm" novalidate>
+      <label class="code-label" for="codeInput">Enter your photo code</label>
+      <input class="code-input" id="codeInput" name="code" type="text"
+             autocomplete="off" autocapitalize="characters" spellcheck="false"
+             maxlength="6" placeholder="R86F2U" required>
+      <button class="btn btn-main" id="findBtn" type="submit">Find my photo</button>
+    </form>
+
+    <p class="lookup-msg" id="msg" role="status" aria-live="polite"></p>
+
+    <div class="lookup-result" id="found" hidden>
+      <img class="lookup-photo" id="photo" alt="Your Dove Times front page">
+      <a class="btn btn-main btn-gold" id="downloadLink" download>Download</a>
+      <p class="code-help">On a phone, if the photo opens instead of saving, press and hold it and choose <strong>Save image</strong>.</p>
+    </div>
+  </main>
+
+  <script src="download.js"></script>
+</body>
+</html>

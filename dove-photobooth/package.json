@@ -1,0 +1,13 @@
+{
+  "name": "dove-photobooth",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The Dove Times photobooth: booth page, photo storage and download page",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
