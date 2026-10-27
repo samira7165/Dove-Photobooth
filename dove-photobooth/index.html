@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>The Dove Times Photobooth</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,900&family=Old+Standard+TT:wght@400;700&family=Caveat:wght@500;700&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="paper">
+    <!-- ── Masthead ───────────────────────────── -->
+    <header class="masthead">
+      <div class="ear">BE KIND,<br>REWIND.</div>
+      <h1 class="title">THE <em>Dove</em> TIMES</h1>
+      <div class="ear">PHOTO DESK<br>IS OPEN.</div>
+    </header>
+    <div class="dateline">
+      <span>VOL. 2000 NO. 01</span>
+      <span>STRIKE A POSE · THE PRESS IS WAITING</span>
+      <span>SPECIAL Y2K EDITION</span>
+    </div>
+
+    <main class="layout">
+      <!-- ── Stage: live camera / final photo inside the frame ── -->
+      <section class="stage-wrap">
+        <div class="stage" id="stage">
+          <div class="hole" id="hole">
+            <video id="video" autoplay playsinline muted></video>
+            <div class="cam-msg" id="camMsg" hidden></div>
+          </div>
+          <img class="frame" id="frameImg" alt="Newspaper frame">
+          <img class="result" id="resultImg" alt="Your framed photo" hidden>
+          <div class="countdown" id="countdown" hidden></div>
+          <div class="flash" id="flash"></div>
+        </div>
+      </section>
+
+      <!-- ── Sidebar controls ───────────────────── -->
+      <aside class="side">
+        <!-- Step: shooting -->
+        <div class="panel" id="shootPanel">
+          <p class="kicker">FRONT PAGE CALLING</p>
+          <h2>Make the headline.</h2>
+          <p class="body">Step into the frame, hit the button, and hold your pose for three seconds.</p>
+
+          <button class="btn btn-main" id="captureBtn">Take photo</button>
+
+          <fieldset class="tone">
+            <legend>Print tone</legend>
+            <label><input type="radio" name="tone" value="bw" checked> Newsprint B&amp;W</label>
+            <label><input type="radio" name="tone" value="sepia"> Sepia</label>
+            <label><input type="radio" name="tone" value="color"> Colour</label>
+          </fieldset>
+
+          <label class="btn btn-ghost file-btn">
+            Upload a photo instead
+            <input type="file" id="photoInput" accept="image/*">
+          </label>
+
+          <p class="scribble">Bounce like it's 2000 ♡</p>
+        </div>
+
+        <!-- Step: result -->
+        <div class="panel" id="resultPanel" hidden>
+          <p class="kicker">HOT OFF THE PRESS</p>
+          <h2>That's hot.</h2>
+          <p class="body">Your front page is ready. Download it or send it to the printer.</p>
+          <button class="btn btn-main" id="downloadBtn">Download</button>
+          <button class="btn btn-main btn-gold" id="printBtn">Print</button>
+          <button class="btn btn-ghost" id="retakeBtn">Retake</button>
+          <p class="scribble">I'm the queen of the world!</p>
+        </div>
+
+        <!-- Admin: frame management -->
+        <details class="admin">
+          <summary>Frame settings</summary>
+          <p class="small">Upload a PNG with a transparent window. The photo is placed into the window automatically.</p>
+          <label class="btn btn-ghost file-btn small-btn">
+            Upload new frame
+            <input type="file" id="frameInput" accept="image/png">
+          </label>
+          <button class="btn btn-ghost small-btn" id="resetFrameBtn">Use default frame</button>
+          <label class="check"><input type="checkbox" id="mirrorChk" checked> Mirror photo (selfie view)</label>
+          <p class="small" id="frameInfo"></p>
+        </details>
+      </aside>
+    </main>
+
+    <footer class="foot">PARTY LIKE IT'S 2000. HAIR LIKE IT'S BRAND NEW.</footer>
+  </div>
+
+  <button class="btn btn-ghost fs-btn" id="fullscreenBtn" type="button">Full screen</button>
+
+  <!-- Only this is visible when printing -->
+  <div id="printSheet"><img id="printImg" alt=""></div>
+
+  <canvas id="work" hidden></canvas>
+  <script src="app.js"></script>
+</body>
+</html>
