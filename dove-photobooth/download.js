@@ -1,7 +1,7 @@
 /* ─────────────────────────────────────────────────────────────
    Download page: guest enters the code from the booth,
    the photo is fetched from server.js and offered as a download.
-   Also works as a link: /download?code=R86F2U
+   Also works as a link: /download?code=482915
    ───────────────────────────────────────────────────────────── */
 
 const CODE_LENGTH = 6;
@@ -34,7 +34,7 @@ function showMessage(text, isError) {
 async function find(code) {
   els.found.hidden = true;
   if (code.length !== CODE_LENGTH) {
-    showMessage(`Codes are ${CODE_LENGTH} characters long. Check the code and try again.`, true);
+    showMessage(`Codes are ${CODE_LENGTH} digits long. Check the code and try again.`, true);
     return;
   }
 

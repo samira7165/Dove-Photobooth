@@ -33,16 +33,22 @@ const { createDb } = require("./lib/db");
 const { createAuth } = require("./lib/auth");
 const { writeZip } = require("./lib/zip");
 
+// Running as DovePhotobooth.exe (see build/build-exe.js): pages come from inside
+// the exe, and photos/data are kept in folders next to it.
+const sea = (() => { try { const s = require("node:sea"); return s.isSea() ? s : null; } catch { return null; } })();
+
 const PORT = Number(process.env.PORT) || 8000;
 const ROOT = __dirname;
+const HOME = sea ? path.dirname(process.execPath) : ROOT;
 // On a host, point these at a persistent disk/volume so they survive restarts
-const PHOTOS = path.resolve(process.env.PHOTOS_DIR || path.join(ROOT, "photos"));
-const DATA = path.resolve(process.env.DATA_DIR || path.join(ROOT, "data"));
+const PHOTOS = path.resolve(process.env.PHOTOS_DIR || path.join(HOME, "photos"));
+const DATA = path.resolve(process.env.DATA_DIR || path.join(HOME, "data"));
 const MAX_UPLOAD = 25 * 1024 * 1024; // 25 MB
 const MAX_JSON = 64 * 1024;
 const CODE_LENGTH = 6;
-const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O or 1/I
-const CODE_RE = new RegExp(`^[${CODE_ALPHABET}]{${CODE_LENGTH}}$`);
+const CODE_ALPHABET = "0123456789"; // new codes are numbers only
+// Lookups also accept older letter codes so photos saved before still work
+const CODE_RE = new RegExp(`^[A-Z0-9]{${CODE_LENGTH}}$`);
 const PUBLIC_EVENTS = ["visit", "download", "print"];
 
 // Only these file types are served; server code and data never are
@@ -301,6 +307,17 @@ async function handleStatic(req, res, url) {
   let rel = decodeURIComponent(url.pathname);
   if (rel.endsWith("/")) rel += "index.html";
   else if (!path.extname(rel)) rel += ".html";   // clean URLs: /download → download.html
+
+  if (sea) {
+    // Inside the exe only the page files are packed in, so nothing private can be served
+    const type = TYPES[path.extname(rel).toLowerCase()];
+    let data;
+    try { data = Buffer.from(sea.getAsset(rel.replace(/^\/+/, ""))); } catch {}
+    if (!type || !data) return send(res, 404, "Not found", "text/plain");
+    res.writeHead(200, { "Content-Type": type, "X-Content-Type-Options": "nosniff" });
+    return res.end(req.method === "HEAD" ? undefined : data);
+  }
+
   const file = path.normalize(path.join(ROOT, rel));
   const type = TYPES[path.extname(file).toLowerCase()];
   // Stay inside the app folder, and keep server code, data and saved photos private
@@ -317,7 +334,16 @@ async function handleStatic(req, res, url) {
   }
 }
 
-http.createServer(async (req, res) => {
+// A double-clicked exe closes its window on exit, so wait for Enter before quitting
+function fatal(msg) {
+  console.error("\n" + msg);
+  if (!sea) process.exit(1);
+  console.error("\nPress Enter to close this window.");
+  process.stdin.resume();
+  process.stdin.once("data", () => process.exit(1));
+}
+
+const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://localhost");
   try {
     if (url.pathname.startsWith("/api/admin/")) await handleAdminApi(req, res, url);
@@ -342,6 +368,19 @@ http.createServer(async (req, res) => {
     if (firstAdmin.generated) console.log("  (Change it after logging in: \"Change password\" at the top of the dashboard.)");
     console.log("");
   }
+  if (sea) {
+    console.log("Keep this window open while the photobooth is in use. Close it to stop.\n");
+    // Open the booth in the default browser
+    if (!process.env.NO_BROWSER) {
+      require("node:child_process").spawn("cmd", ["/c", "start", "", `http://localhost:${PORT}`], { detached: true, stdio: "ignore" }).unref();
+    }
+  }
+});
+
+server.on("error", (e) => {
+  fatal(e.code === "EADDRINUSE"
+    ? `Port ${PORT} is already in use. Is the photobooth already running in another window?`
+    : `Couldn't start the server: ${e.message}`);
 });
 
 // Save any pending analytics before exiting

@@ -5,7 +5,8 @@
   "description": "The Dove Times photobooth: booth page, photo storage and download page",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "build:exe": "node build/build-exe.js"
   },
   "engines": {
     "node": ">=18"

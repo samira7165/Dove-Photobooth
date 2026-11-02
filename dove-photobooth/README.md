@@ -20,6 +20,19 @@ Photos are saved in `photos/` as `CODE.jpg`. Delete that folder's contents after
 
 If Windows Firewall asks whether to allow Node.js, allow it on **private networks**, or guests' phones won't be able to reach the download page.
 
+## Make a Windows .exe
+
+```bash
+cd dove-photobooth
+npm run build:exe
+```
+
+This creates `dist/DovePhotobooth.exe` (about 80–90 MB, because Node.js is inside it). The computer running it doesn't need Node.js installed. The first build needs internet once, to download the `postject` tool.
+
+Double-click the exe to start: a window shows the addresses (and the first admin password), and the booth opens in the browser. Keep the window open while the booth is in use. Photos and data are saved in `photos/` and `data/` folders **next to the exe**, so keep them together when moving it.
+
+Windows may show "Windows protected your PC" the first time, because the exe isn't code-signed. Click **More info → Run anyway**.
+
 ## Put it online (download from anywhere)
 
 Deploy this folder to any Node.js host (Railway, Render, Fly.io, a VPS…). Then:
@@ -62,8 +75,8 @@ Accounts, sessions and analytics are kept in `data/` (`users.json`, `db.json`). 
 3. The live camera is shown inside that slot, with the frame on top, so people see exactly what they'll get.
 4. On capture: 3-2-1 countdown, the camera frame is drawn into the slot ("cover" fit, centred), the tone is applied, then the frame is drawn on top.
 5. The template shrinks a little and shows **Print**, the photo's code, and how to save it. **Print** prints only the final image, edge to edge on A4. **Take another photo** goes back to the camera.
-6. The photo is uploaded to `server.js`, which saves it and hands back a unique 6-character code (no look-alikes like 0/O or 1/I).
-7. Guests open `/download`, enter the code, and download their photo. A link like `/download?code=R86F2U` opens straight to the photo.
+6. The photo is uploaded to `server.js`, which saves it and hands back a unique 6-digit code.
+7. Guests open `/download`, enter the code, and download their photo. A link like `/download?code=482915` opens straight to the photo.
 
 ## Changing the frame
 

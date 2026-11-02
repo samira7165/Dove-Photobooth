@@ -17,8 +17,8 @@
     <form class="lookup-form" id="findForm" novalidate>
       <label class="code-label" for="codeInput">Enter your photo code</label>
       <input class="code-input" id="codeInput" name="code" type="text"
-             autocomplete="off" autocapitalize="characters" spellcheck="false"
-             maxlength="6" placeholder="R86F2U" required>
+             inputmode="numeric" autocomplete="off" spellcheck="false"
+             maxlength="6" placeholder="482915" required>
       <button class="btn btn-main" id="findBtn" type="submit">Find my photo</button>
     </form>
 
@@ -31,6 +31,7 @@
     </div>
   </main>
 
+  <script src="fullscreen.js"></script>
   <script src="download.js"></script>
 </body>
 </html>
