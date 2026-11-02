@@ -279,5 +279,6 @@ a.btn { text-decoration: none; }
   body { background: #fff; }
   .booth, canvas { display: none !important; }
   #printSheet { display: block; width: 100%; }
-  #printSheet img { display: block; width: 100%; height: auto; }
+  /* Fit inside one page: the frame is a hair taller than A4 and would spill onto a blank 2nd page */
+  #printSheet img { display: block; width: 100%; height: 100vh; object-fit: contain; }
 }
