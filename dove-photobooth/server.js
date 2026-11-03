@@ -58,7 +58,7 @@ const TYPES = {
   ".svg": "image/svg+xml",
   ".ico": "image/x-icon",
 };
-const PRIVATE = [PHOTOS, DATA, path.join(ROOT, "lib"), path.join(ROOT, "node_modules")];
+const PRIVATE = [PHOTOS, DATA, ...["lib", "build", "dist", "node_modules"].map((d) => path.join(ROOT, d))];
 
 fs.mkdirSync(PHOTOS, { recursive: true });
 fs.mkdirSync(DATA, { recursive: true });
