@@ -3,8 +3,8 @@
    1. Loads a frame PNG and finds its transparent "window".
    2. Shows the live camera inside that window.
    3. On capture: draws the photo into the window, puts the frame on top,
-      uploads it to server.js (which hands back a code), and offers Print.
-      Guests enter the code on /download to get their photo.
+      and on OK uploads it to server.js and offers Print.
+      Saved photos are viewed, downloaded and deleted in /admin.
    ───────────────────────────────────────────────────────────── */
 
 const CONFIG = {
@@ -15,9 +15,6 @@ const CONFIG = {
   jpegQuality: 0.95,
   alphaThreshold: 20,       // pixels with alpha below this count as "window"
   cameraIdeal: { width: 1920, height: 1080 },
-  // Address shown to guests for the download page. Leave empty to use the
-  // Wi-Fi address server.js reports (falls back to this page's own address).
-  downloadUrl: "",
 };
 
 const $ = (id) => document.getElementById(id);
@@ -28,7 +25,6 @@ const els = {
   shootPanel: $("shootPanel"), confirmPanel: $("confirmPanel"), resultPanel: $("resultPanel"),
   captureBtn: $("captureBtn"), okBtn: $("okBtn"), retakeBtn: $("retakeBtn"), saveError: $("saveError"),
   printBtn: $("printBtn"), newPhotoBtn: $("newPhotoBtn"),
-  photoCode: $("photoCode"), downloadUrl: $("downloadUrl"),
   printImg: $("printImg"), work: $("work"),
 };
 
@@ -37,7 +33,7 @@ const state = {
   stream: null,
   resultBlob: null,   // photo waiting for OK / Retake
   resultUrl: null,
-  code: null,         // code of the saved photo on screen
+  code: null,         // id of the saved photo on screen (for the dashboard)
   busy: false,
 };
 
@@ -49,28 +45,11 @@ function track(type, code) {
   }).catch(() => {});
 }
 
-/* ── Saving photos for download (server.js) ── */
+/* ── Saving photos to the admin dashboard (server.js) ── */
 async function uploadPhoto(blob) {
   const r = await fetch("api/photos", { method: "POST", headers: { "Content-Type": "image/jpeg" }, body: blob });
   if (!r.ok) throw new Error("Upload failed: " + r.status);
   return (await r.json()).code;
-}
-
-async function setDownloadUrl() {
-  let base = CONFIG.downloadUrl;
-  if (!base) {
-    // Hosted online: this site's own address works for guests anywhere.
-    // Running on a laptop (localhost): use its Wi-Fi address instead.
-    base = location.origin;
-    if (["localhost", "127.0.0.1"].includes(location.hostname)) {
-      try {
-        const info = await (await fetch("api/info")).json();
-        if (info.lan?.length) base = info.lan[0];
-      } catch {}
-    }
-    base += "/download";
-  }
-  els.downloadUrl.textContent = base.replace(/^https?:\/\//, "");
 }
 
 /* ── Frame loading + automatic window detection ── */
@@ -208,7 +187,7 @@ async function compose(source, srcW, srcH, flip) {
   showPreview(blob);
 }
 
-// Which step is on screen: "shoot" → "confirm" (OK / Retake) → "result" (Print + code)
+// Which step is on screen: "shoot" → "confirm" (OK / Retake) → "result" (Print)
 function showStep(step) {
   els.shootPanel.hidden = step !== "shoot";
   els.confirmPanel.hidden = step !== "confirm";
@@ -229,7 +208,7 @@ function showPreview(blob) {
   showStep("confirm");
 }
 
-// OK: save the photo to the server, then show Print and the download code
+// OK: save the photo to the server (it appears in the dashboard), then show Print
 async function confirmPhoto() {
   if (state.busy || !state.resultBlob) return;
   state.busy = true;
@@ -238,7 +217,6 @@ async function confirmPhoto() {
   els.saveError.hidden = true;
   try {
     state.code = await uploadPhoto(state.resultBlob);
-    els.photoCode.textContent = state.code;
     showStep("result");
   } catch (e) {
     console.error(e);
@@ -292,7 +270,6 @@ async function print() {
 async function init() {
   els.captureBtn.disabled = true;
   applyPreviewStyle();
-  setDownloadUrl();
 
   try {
     await setFrame(CONFIG.frame);

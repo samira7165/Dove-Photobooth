@@ -1,6 +1,6 @@
 # The Dove Times Photobooth
 
-The whole screen is the newspaper template. Tap **Take photo**, the photo drops into the frame, then **Print** it. Each photo gets a short code that's shown on screen for the guest to save.
+The whole screen is the newspaper template. Tap **Take photo**, the photo drops into the frame, then **Print** it. Every photo is saved to the admin dashboard, where staff can view, download (one, several or all) and delete them. Guests don't download anything themselves.
 
 ## Run it
 
@@ -14,11 +14,9 @@ node server.js
 It prints two addresses:
 
 - **http://localhost:8000** opens the booth on this computer. Allow camera access. (The camera only works on `localhost` or `https://`, so use this address for the booth.)
-- **http://<wifi-address>:8000/download** is the download page for guests. It works on any phone on the **same Wi-Fi**. The booth shows this address under every photo code.
+- **http://localhost:8000/admin** opens the admin dashboard.
 
-Photos are saved in `photos/` as `CODE.jpg`. Delete that folder's contents after the event to clear them.
-
-If Windows Firewall asks whether to allow Node.js, allow it on **private networks**, or guests' phones won't be able to reach the download page.
+Photos are saved in `photos/` as `CODE.jpg` (a 6-digit number). Delete them from the dashboard, or clear that folder after the event.
 
 ## Make a Windows .exe
 
@@ -33,12 +31,12 @@ Double-click the exe to start: a window shows the addresses (and the first admin
 
 Windows may show "Windows protected your PC" the first time, because the exe isn't code-signed. Click **More info → Run anyway**.
 
-## Put it online (download from anywhere)
+## Put it online
 
 Deploy this folder to any Node.js host (Railway, Render, Fly.io, a VPS…). Then:
 
 - Open the host's `https://` address on the booth computer. It's the booth, and the camera works because it's HTTPS.
-- Guests download from `https://<your-site>/download` on any network. The booth shows this address under every code automatically.
+- Open `https://<your-site>/admin` from anywhere to manage the photos.
 
 Host settings:
 
@@ -48,7 +46,7 @@ Host settings:
 | Start command | `npm start` (or `node server.js`) |
 | `PHOTOS_DIR` env variable | Path of a **persistent volume/disk**, e.g. `/data/photos` |
 
-Without a persistent volume most hosts wipe saved files on every restart or redeploy, and guests' photos would disappear.
+Without a persistent volume most hosts wipe saved files on every restart or redeploy, and saved photos would disappear.
 
 ## Admin dashboard
 
@@ -59,11 +57,11 @@ The first time the server starts it creates an `admin` account and prints its pa
 | Role | Can |
 | --- | --- |
 | **viewer** | See analytics |
-| **staff** | Viewer + see all photos, download single photos, export data (CSV) and all photos (ZIP) |
+| **staff** | Viewer + see all photos, download one, selected or all photos (ZIP), export data (CSV) |
 | **admin** | Staff + delete photos, add/remove users, change roles, reset passwords |
 
-- **Overview:** photos taken, prints, download page visits, code lookups (and wrong codes), downloads, % of photos downloaded, photos per day and by hour. Filter by today / 7 days / 30 days / all time.
-- **Submissions:** every photo with its code, time, lookups, downloads and prints. Search by code, sort, download, delete (admin).
+- **Overview:** photos taken, prints, % of photos printed, photos per day and by hour. Filter by today / 7 days / 30 days / all time.
+- **Submissions:** every framed photo with its number, time and prints. Search by number, sort, download, delete (admin). Tick photos (or **Select all on this page**) and press **Download selected (ZIP)** to get several at once.
 - **Users:** add people and pick their role (admin only).
 
 Accounts, sessions and analytics are kept in `data/` (`users.json`, `db.json`). Passwords are stored hashed. Set `DATA_DIR` to keep it on a persistent disk, like `PHOTOS_DIR`. Back up `data/` and `photos/` together.
@@ -74,9 +72,8 @@ Accounts, sessions and analytics are kept in `data/` (`users.json`, `db.json`). 
 2. On load, `app.js` scans the frame's pixels and finds the bounding box of the transparent area. That box is the photo slot, so no coordinates need to be set by hand.
 3. The live camera is shown inside that slot, with the frame on top, so people see exactly what they'll get.
 4. On capture: 3-2-1 countdown, the camera frame is drawn into the slot ("cover" fit, centred), the tone is applied, then the frame is drawn on top.
-5. The template shrinks a little and shows **Print**, the photo's code, and how to save it. **Print** prints only the final image, edge to edge on A4. **Take another photo** goes back to the camera.
-6. The photo is uploaded to `server.js`, which saves it and hands back a unique 6-digit code.
-7. Guests open `/download`, enter the code, and download their photo. A link like `/download?code=482915` opens straight to the photo.
+5. **Retake** or **OK**. On OK the framed photo is uploaded to `server.js`, which saves it under a unique 6-digit number, so it shows up in the dashboard.
+6. The booth then shows **Print** (only the final image, edge to edge on A4) and **Take another photo**.
 
 ## Changing the frame
 
@@ -95,7 +92,6 @@ Frame tips:
 | `countdownSeconds` | Countdown length |
 | `tone` | `"bw"`, `"sepia"` or `"color"` |
 | `mirror` | `true` flips the camera like a mirror (selfie view) |
-| `downloadUrl` | Download page address shown to guests. Leave empty to use the Wi-Fi address automatically |
 | `jpegQuality` | 0–1, output quality |
 | `alphaThreshold` | How transparent a pixel must be to count as "window" |
 

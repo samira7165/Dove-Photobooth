@@ -86,18 +86,25 @@
     <!-- Submissions -->
     <section class="panel-view" id="tab-submissions" role="tabpanel" hidden>
       <div class="toolbar">
-        <input class="search" id="searchInput" type="search" placeholder="Search code" autocomplete="off" spellcheck="false" aria-label="Search by code">
+        <input class="search" id="searchInput" type="search" placeholder="Search photo no." autocomplete="off" spellcheck="false" aria-label="Search by photo number">
         <select id="sortSelect" aria-label="Sort">
           <option value="new">Newest first</option>
           <option value="old">Oldest first</option>
-          <option value="downloads">Most downloaded</option>
-          <option value="notdl">Not downloaded yet</option>
+          <option value="prints">Most printed</option>
+          <option value="notprinted">Not printed yet</option>
         </select>
         <span class="spacer"></span>
         <a class="btn btn-ghost btn-sm" href="api/admin/export.csv" download>Export data (CSV)</a>
-        <a class="btn btn-main btn-sm" href="api/admin/export.zip" download>Download all photos (ZIP)</a>
+        <a class="btn btn-ghost btn-sm" href="api/admin/export.zip" download>Download all photos (ZIP)</a>
       </div>
-      <p class="count-line" id="subCount"></p>
+      <div class="select-bar">
+        <label class="pick-all"><input type="checkbox" id="pickAll"> Select all on this page</label>
+        <span class="count-line" id="subCount"></span>
+        <span class="spacer"></span>
+        <span class="sel-count" id="selCount" aria-live="polite"></span>
+        <button class="link-btn" id="clearSelBtn" type="button" hidden>Clear selection</button>
+        <button class="btn btn-main btn-sm" id="dlSelBtn" type="button" disabled>Download selected (ZIP)</button>
+      </div>
       <div class="grid" id="photoGrid"></div>
       <div class="pager" id="pager"></div>
     </section>
@@ -121,7 +128,7 @@
           <label class="field"><span>Role</span>
             <select name="role">
               <option value="viewer">Viewer: analytics only</option>
-              <option value="staff" selected>Staff: analytics, submissions, downloads</option>
+              <option value="staff" selected>Staff: analytics, photos, downloads</option>
               <option value="admin">Admin: everything, incl. users and deleting</option>
             </select></label>
           <button class="btn btn-main btn-sm" type="submit">Add user</button>

@@ -1,12 +1,10 @@
 /* ─────────────────────────────────────────────────────────────
    The Dove Times Photobooth server
-   Pages:  /  booth · /download  guest download · /admin  dashboard
+   Pages:  /  booth · /admin  dashboard (view, download, delete photos)
 
-   Public API
+   Public API (used by the booth)
    - POST /api/photos        saves a photo, returns { code }
-   - GET  /api/photos/CODE   returns that photo as a JPG
-   - POST /api/track         { type: "visit" | "download" | "print", code? }
-   - GET  /api/info          the address guests can open on their phones
+   - POST /api/track         { type: "print", code }
 
    Admin API (login required; role in brackets)
    - POST   /api/admin/login · /api/admin/logout · GET /api/admin/me
@@ -15,7 +13,7 @@
    - GET    /api/admin/photos             [staff]   submissions
    - GET    /api/admin/photos/CODE/image  [staff]
    - GET    /api/admin/export.csv         [staff]
-   - GET    /api/admin/export.zip         [staff]   all photos + CSV
+   - GET    /api/admin/export.zip         [staff]   all photos + CSV (?codes=A,B,… for only those)
    - DELETE /api/admin/photos/CODE        [admin]
    - GET/POST /api/admin/users, PATCH/DELETE /api/admin/users/NAME  [admin]
 
@@ -27,7 +25,6 @@ const http = require("node:http");
 const fs = require("node:fs");
 const fsp = require("node:fs/promises");
 const path = require("node:path");
-const os = require("node:os");
 const crypto = require("node:crypto");
 const { createDb } = require("./lib/db");
 const { createAuth } = require("./lib/auth");
@@ -47,9 +44,9 @@ const MAX_UPLOAD = 25 * 1024 * 1024; // 25 MB
 const MAX_JSON = 64 * 1024;
 const CODE_LENGTH = 6;
 const CODE_ALPHABET = "0123456789"; // new codes are numbers only
-// Lookups also accept older letter codes so photos saved before still work
+// Also accepts older letter codes so photos saved before still work
 const CODE_RE = new RegExp(`^[A-Z0-9]{${CODE_LENGTH}}$`);
-const PUBLIC_EVENTS = ["visit", "download", "print"];
+const PUBLIC_EVENTS = ["print"];
 
 // Only these file types are served; server code and data never are
 const TYPES = {
@@ -80,21 +77,6 @@ function newCode() {
   return code;
 }
 
-// Wi-Fi / LAN addresses, so guests' phones can reach the download page
-// Wi-Fi first; virtual adapters (VirtualBox's 192.168.56.x, WSL, Docker…) last,
-// since phones can't reach those.
-function lanUrls() {
-  const virtual = /virtual|vbox|vmware|vethernet|hyper-v|wsl|docker/i;
-  const rank = ({ name, address }) =>
-    /wi-?fi|wlan|wireless/i.test(name) ? 0 :
-    virtual.test(name) || address.startsWith("192.168.56.") ? 2 : 1;
-  return Object.entries(os.networkInterfaces())
-    .flatMap(([name, addrs]) => addrs.map((a) => ({ ...a, name })))
-    .filter((a) => a.family === "IPv4" && !a.internal)
-    .sort((a, b) => rank(a) - rank(b))
-    .map((a) => `http://${a.address}:${PORT}`);
-}
-
 /* ── HTTP helpers ── */
 function send(res, status, body, type = "application/json; charset=utf-8", headers = {}) {
   res.writeHead(status, { "Content-Type": type, "Cache-Control": "no-store", ...headers });
@@ -120,7 +102,6 @@ async function readJson(req) {
 }
 
 const isHttps = (req) => req.socket.encrypted || req.headers["x-forwarded-proto"] === "https";
-const origin = (req) => `${isHttps(req) ? "https" : "http"}://${req.headers.host}`;
 const clientIp = (req) => String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket.remoteAddress;
 
 function getCookie(req, name) {
@@ -134,11 +115,9 @@ function sessionCookie(req, token, maxAgeSec) {
 const csvCell = (v) => (/[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
 const iso = (ms) => new Date(ms).toISOString();
 
-function submissionsCsv(req) {
-  const rows = [["code", "created_at", "lookups", "downloads", "prints", "download_link"]];
-  for (const p of db.listPhotos()) {
-    rows.push([p.code, iso(p.createdAt), p.views, p.downloads, p.prints, `${origin(req)}/download?code=${p.code}`]);
-  }
+function submissionsCsv(photos) {
+  const rows = [["code", "created_at", "prints"]];
+  for (const p of photos) rows.push([p.code, iso(p.createdAt), p.prints]);
   return rows.map((r) => r.map(csvCell).join(",")).join("\r\n") + "\r\n";
 }
 
@@ -158,29 +137,11 @@ async function handlePublicApi(req, res, url) {
     return send(res, 201, { code });
   }
 
-  const m = url.pathname.match(/^\/api\/photos\/([^/]+)$/);
-  if (req.method === "GET" && m) {
-    const code = decodeURIComponent(m[1]).toUpperCase();
-    try {
-      if (!CODE_RE.test(code)) throw new Error("bad code");
-      const data = await fsp.readFile(photoPath(code));
-      db.track("lookup", code);
-      return send(res, 200, data, "image/jpeg");
-    } catch {
-      db.track("lookup_fail");
-      return send(res, 404, { error: "Not found." });
-    }
-  }
-
   if (req.method === "POST" && url.pathname === "/api/track") {
     const { type, code } = await readJson(req);
     if (!PUBLIC_EVENTS.includes(type)) return send(res, 400, { error: "Unknown event." });
     db.track(type, typeof code === "string" && CODE_RE.test(code) ? code : null);
     return send(res, 204, "");
-  }
-
-  if (req.method === "GET" && url.pathname === "/api/info") {
-    return send(res, 200, { lan: lanUrls() });
   }
 
   return send(res, 404, { error: "Not found." });
@@ -258,21 +219,25 @@ async function handleAdminApi(req, res, url) {
 
   if (req.method === "GET" && p === "/export.csv") {
     if (!need("staff")) return;
-    return send(res, 200, "﻿" + submissionsCsv(req), "text/csv; charset=utf-8",
+    return send(res, 200, "﻿" + submissionsCsv(db.listPhotos()), "text/csv; charset=utf-8",
       { "Content-Disposition": `attachment; filename="dove-times-submissions-${stamp}.csv"` });
   }
 
   if (req.method === "GET" && p === "/export.zip") {
     if (!need("staff")) return;
+    // ?codes=A,B,C downloads only the photos selected in the dashboard
+    const pick = url.searchParams.has("codes") ? new Set(url.searchParams.get("codes").split(",")) : null;
+    const photos = pick ? db.listPhotos().filter((ph) => pick.has(ph.code)) : db.listPhotos();
+    if (!photos.length) return send(res, 404, { error: "No photos selected." });
     res.writeHead(200, {
       "Content-Type": "application/zip",
-      "Content-Disposition": `attachment; filename="dove-times-photos-${stamp}.zip"`,
+      "Content-Disposition": `attachment; filename="dove-times-${pick ? "selected" : "photos"}-${stamp}.zip"`,
       "Cache-Control": "no-store",
     });
-    const csv = Buffer.from("﻿" + submissionsCsv(req), "utf8");
+    const csv = Buffer.from("﻿" + submissionsCsv(photos), "utf8");
     const entries = [
       { name: "submissions.csv", mtime: Date.now(), read: async () => csv },
-      ...db.listPhotos().map((ph) => ({
+      ...photos.map((ph) => ({
         name: `photos/${ph.code}.jpg`, mtime: ph.createdAt, read: () => fsp.readFile(photoPath(ph.code)),
       })),
     ];
@@ -306,7 +271,7 @@ async function handleStatic(req, res, url) {
   if (req.method !== "GET" && req.method !== "HEAD") return send(res, 405, "Method not allowed", "text/plain");
   let rel = decodeURIComponent(url.pathname);
   if (rel.endsWith("/")) rel += "index.html";
-  else if (!path.extname(rel)) rel += ".html";   // clean URLs: /download → download.html
+  else if (!path.extname(rel)) rel += ".html";   // clean URLs: /admin → admin.html
 
   if (sea) {
     // Inside the exe only the page files are packed in, so nothing private can be served
@@ -355,10 +320,8 @@ const server = http.createServer(async (req, res) => {
     else res.destroy();
   }
 }).listen(PORT, () => {
-  console.log(`\nPhotobooth (this computer):  http://localhost:${PORT}`);
-  console.log(`Download page:               http://localhost:${PORT}/download`);
-  console.log(`Admin dashboard:             http://localhost:${PORT}/admin`);
-  for (const u of lanUrls()) console.log(`Download page (Wi-Fi):       ${u}/download`);
+  console.log(`\nPhotobooth:       http://localhost:${PORT}`);
+  console.log(`Admin dashboard:  http://localhost:${PORT}/admin`);
   console.log(`Photos are saved in: ${PHOTOS}`);
   console.log(`Data is saved in:    ${DATA}\n`);
   if (firstAdmin) {

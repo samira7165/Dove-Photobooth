@@ -17,6 +17,7 @@ const els = {
   hourChart: $("hourChart"), hourTable: $("hourTable"), tooltip: $("tooltip"),
   searchInput: $("searchInput"), sortSelect: $("sortSelect"),
   subCount: $("subCount"), photoGrid: $("photoGrid"), pager: $("pager"),
+  pickAll: $("pickAll"), selCount: $("selCount"), clearSelBtn: $("clearSelBtn"), dlSelBtn: $("dlSelBtn"),
   usersBody: document.querySelector("#usersTable tbody"),
   addUserForm: $("addUserForm"), addUserMsg: $("addUserMsg"),
   pwDialog: $("pwDialog"), pwForm: $("pwForm"), pwMsg: $("pwMsg"), pwCancel: $("pwCancel"),
@@ -28,6 +29,7 @@ const state = {
   range: 0,          // days; 0 = all time
   photos: [],
   page: 0,
+  selected: new Set(),   // codes ticked for "Download selected"; kept across pages
 };
 
 const can = (role) => state.user && ROLES.indexOf(state.user.role) >= ROLES.indexOf(role);
@@ -114,16 +116,13 @@ function renderOverview() {
   const inRange = events.filter(([, at]) => at >= from);
   const count = (t) => inRange.reduce((n, [type]) => n + (type === t), 0);
 
-  const photos = count("photo"), prints = count("print"), visits = count("visit");
-  const lookups = count("lookup"), fails = count("lookup_fail"), downloads = count("download");
+  const photos = count("photo"), prints = count("print");
   const tiles = [
     ["Photos taken", fmt(photos), state.range ? "in this period" : "all time"],
-    ["Prints", fmt(prints), `${pct(prints, photos)} of photos`],
-    ["Download page visits", fmt(visits), ""],
-    ["Codes looked up", fmt(lookups), `${fmt(fails)} wrong code${fails === 1 ? "" : "s"}`],
-    ["Downloads", fmt(downloads), ""],
-    ["Photos downloaded", pct(totals.photosDownloaded, totals.photos),
-      `${fmt(totals.photosDownloaded)} of ${fmt(totals.photos)} · all time`],
+    ["Prints", fmt(prints), state.range ? "in this period" : "all time"],
+    ["Photos printed", pct(totals.photosPrinted, totals.photos),
+      `${fmt(totals.photosPrinted)} of ${fmt(totals.photos)} · all time`],
+    ["Photos saved", fmt(totals.photos), "in Submissions now"],
   ];
   els.tiles.innerHTML = tiles.map(([label, value, sub]) => `
     <div class="tile">
@@ -249,6 +248,9 @@ window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer
 /* ── Submissions ── */
 async function loadPhotos() {
   try { state.photos = (await api("photos")).photos; } catch { return; }
+  // Drop selections for photos that no longer exist
+  const codes = new Set(state.photos.map((p) => p.code));
+  for (const c of state.selected) if (!codes.has(c)) state.selected.delete(c);
   state.page = 0;
   renderPhotos();
 }
@@ -258,8 +260,8 @@ function filteredPhotos() {
   let list = q ? state.photos.filter((p) => p.code.includes(q)) : [...state.photos];
   switch (els.sortSelect.value) {
     case "old": list.sort((a, b) => a.createdAt - b.createdAt); break;
-    case "downloads": list.sort((a, b) => b.downloads - a.downloads || b.createdAt - a.createdAt); break;
-    case "notdl": list = list.filter((p) => !p.downloads); break;
+    case "prints": list.sort((a, b) => (b.prints || 0) - (a.prints || 0) || b.createdAt - a.createdAt); break;
+    case "notprinted": list = list.filter((p) => !p.prints); break;
   }
   return list;
 }
@@ -273,32 +275,65 @@ function renderPhotos() {
   els.subCount.textContent = `${fmt(list.length)} photo${list.length === 1 ? "" : "s"}` +
     (list.length !== state.photos.length ? ` (of ${fmt(state.photos.length)})` : "");
 
+  state.shown = shown;
   els.photoGrid.innerHTML = shown.length ? shown.map((p) => {
     const img = `api/admin/photos/${p.code}/image`;
-    return `<article class="shot">
+    const picked = state.selected.has(p.code);
+    return `<article class="shot${picked ? " is-picked" : ""}">
+      <label class="pick" title="Select"><input type="checkbox" data-pick="${esc(p.code)}" ${picked ? "checked" : ""}
+        aria-label="Select photo ${esc(p.code)}"></label>
       <a class="thumb" href="${img}" target="_blank" rel="noopener" title="Open full size">
         <img src="${img}" alt="Photo ${p.code}" loading="lazy"></a>
       <div class="shot-body">
         <span class="shot-code">${esc(p.code)}</span>
         <span class="shot-meta">${esc(fmtDateTime(p.createdAt))}</span>
-        <span class="shot-stats">
-          <span title="Times the code was looked up">${fmt(p.views)} lookups</span>
-          <span>${fmt(p.downloads)} downloads</span>
-          <span>${fmt(p.prints)} prints</span>
-        </span>
+        <span class="shot-stats"><span>${fmt(p.prints || 0)} print${p.prints === 1 ? "" : "s"}</span></span>
         <span class="shot-actions">
           <a class="link-btn" href="${img}?download">Download</a>
           ${can("admin") ? `<button class="link-btn danger" type="button" data-delete="${esc(p.code)}">Delete</button>` : ""}
         </span>
       </div>
     </article>`;
-  }).join("") : `<p class="empty-state">No photos${els.searchInput.value ? " match that code" : " yet"}.</p>`;
+  }).join("") : `<p class="empty-state">No photos${els.searchInput.value ? " match that number" : " yet"}.</p>`;
 
   els.pager.innerHTML = pages > 1 ? `
     <button class="link-btn" type="button" data-page="-1" ${state.page === 0 ? "disabled" : ""}>← Newer</button>
     <span>Page ${state.page + 1} of ${pages}</span>
     <button class="link-btn" type="button" data-page="1" ${state.page >= pages - 1 ? "disabled" : ""}>Older →</button>` : "";
+  renderSelection();
 }
+
+// Selection bar: count, "select all on this page" state, Download selected
+function renderSelection() {
+  const n = state.selected.size;
+  const onPage = (state.shown || []).filter((p) => state.selected.has(p.code)).length;
+  els.pickAll.checked = onPage > 0 && onPage === state.shown.length;
+  els.pickAll.indeterminate = onPage > 0 && onPage < state.shown.length;
+  els.pickAll.disabled = !state.shown?.length;
+  els.selCount.textContent = n ? `${fmt(n)} selected` : "";
+  els.clearSelBtn.hidden = !n;
+  els.dlSelBtn.disabled = !n;
+}
+
+function setPicked(code, on) {
+  if (on) state.selected.add(code); else state.selected.delete(code);
+  els.photoGrid.querySelector(`[data-pick="${CSS.escape(code)}"]`)?.closest(".shot").classList.toggle("is-picked", on);
+}
+
+els.pickAll.addEventListener("change", () => {
+  for (const p of state.shown) setPicked(p.code, els.pickAll.checked);
+  renderPhotos();
+});
+els.clearSelBtn.addEventListener("click", () => { state.selected.clear(); renderPhotos(); });
+els.dlSelBtn.addEventListener("click", () => {
+  if (!state.selected.size) return;
+  const a = document.createElement("a");
+  a.href = "api/admin/export.zip?codes=" + encodeURIComponent([...state.selected].join(","));
+  a.download = "";
+  document.body.append(a);
+  a.click();
+  a.remove();
+});
 
 els.searchInput.addEventListener("input", () => { state.page = 0; renderPhotos(); });
 els.sortSelect.addEventListener("change", () => { state.page = 0; renderPhotos(); });
@@ -309,14 +344,21 @@ els.pager.addEventListener("click", (e) => {
   renderPhotos();
   els.photoGrid.scrollIntoView({ block: "start" });
 });
+els.photoGrid.addEventListener("change", (e) => {
+  const box = e.target.closest("[data-pick]");
+  if (!box) return;
+  setPicked(box.dataset.pick, box.checked);
+  renderSelection();
+});
 els.photoGrid.addEventListener("click", async (e) => {
   const b = e.target.closest("[data-delete]");
   if (!b) return;
   const code = b.dataset.delete;
-  if (!confirm(`Delete photo ${code}? The guest will no longer be able to download it. This can't be undone.`)) return;
+  if (!confirm(`Delete photo ${code}? This can't be undone.`)) return;
   try {
     await api("photos/" + code, { method: "DELETE" });
     state.photos = state.photos.filter((p) => p.code !== code);
+    state.selected.delete(code);
     renderPhotos();
   } catch (err) { alert(err.message); }
 });
