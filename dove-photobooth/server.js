@@ -57,6 +57,10 @@ const TYPES = {
   ".jpg": "image/jpeg",
   ".svg": "image/svg+xml",
   ".ico": "image/x-icon",
+  ".woff2": "font/woff2",
+  ".woff": "font/woff",
+  ".otf": "font/otf",
+  ".ttf": "font/ttf",
 };
 const PRIVATE = [PHOTOS, DATA, ...["lib", "build", "dist", "node_modules"].map((d) => path.join(ROOT, d))];
 

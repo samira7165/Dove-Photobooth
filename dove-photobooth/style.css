@@ -1,4 +1,17 @@
 /* Y2K newspaper look, matched to The Dove Times artwork */
+
+/* Sofia Pro is a paid font: used if installed on this computer, or if its
+   files are put in fonts/ (SofiaPro-Bold.woff2 or .otf). Otherwise --f-sans
+   falls back to a system sans-serif. */
+@font-face {
+  font-family: "Sofia Pro";
+  font-weight: 700;
+  font-display: swap;
+  src: local("Sofia Pro Bold"), local("SofiaPro-Bold"),
+       url("fonts/SofiaPro-Bold.woff2") format("woff2"),
+       url("fonts/SofiaPro-Bold.otf") format("opentype");
+}
+
 :root {
   --paper: #f3f1ec;      /* newsprint */
   --ink: #1a1a1a;        /* headline black */
@@ -8,6 +21,7 @@
 
   --f-display: "Playfair Display", "Didot", "Bodoni 72", Georgia, serif;
   --f-body: "Old Standard TT", "Times New Roman", Times, serif;
+  --f-sans: "Sofia Pro", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 
   --gutter: 16px;
 }
@@ -96,12 +110,11 @@ body {
   inset: 0;
   display: grid;
   place-items: center;
-  font-family: var(--f-display);
-  font-style: italic;
-  font-weight: 900;
+  font-family: var(--f-sans);
+  font-weight: 700;
   font-size: clamp(90px, 22vw, 220px);
-  color: #fff;
-  text-shadow: 0 4px 0 var(--navy), 0 0 30px #0008;
+  color: var(--navy);
+  text-shadow: 0 4px 0 #fff, 0 0 30px #fff8;   /* white edge keeps blue readable over the camera */
   pointer-events: none;
 }
 .countdown.pop { animation: pop 0.9s ease-out; }
@@ -151,6 +164,7 @@ body {
 .btn-main:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--gold); }
 .btn-gold { background: var(--gold); color: var(--ink); box-shadow: 4px 4px 0 var(--ink); }
 .btn-gold:active { box-shadow: 1px 1px 0 var(--ink); }
+.btn-sans { font-family: var(--f-sans); letter-spacing: 0.1em; }   /* Take photo */
 .btn-ghost { background: transparent; color: var(--ink); font-size: 13px; padding: 12px; }
 .btn-ghost.btn-big { font-size: 18px; padding: 20px 16px; }   /* ghost button at full size, e.g. Retake */
 @media (hover: hover) { .btn-ghost:hover { background: #0000000a; } }

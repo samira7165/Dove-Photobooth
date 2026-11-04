@@ -22,7 +22,7 @@ const BLOB = path.join(DIST, "sea-prep.blob");
 const CONFIG = path.join(DIST, "sea-config.json");
 
 // Files the browser loads; everything else (server code, data, photos) stays out
-const ASSET_EXT = [".html", ".css", ".js", ".png", ".jpg", ".svg", ".ico"];
+const ASSET_EXT = [".html", ".css", ".js", ".png", ".jpg", ".svg", ".ico", ".woff2", ".woff", ".otf", ".ttf"];
 const SKIP = new Set(["lib", "build", "dist", "data", "photos", "node_modules", "server.js"]);
 
 const step = (msg) => console.log(`\n▸ ${msg}`);
