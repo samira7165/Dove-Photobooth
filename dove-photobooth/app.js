@@ -259,7 +259,7 @@ async function capture() {
 }
 
 /* ── Print ── */
-async function print() {
+async function printPhoto() {
   if (!state.code) return;
   if (!els.printImg.complete) await new Promise((r) => (els.printImg.onload = r));
   track("print", state.code);
@@ -285,7 +285,7 @@ async function init() {
   els.okBtn.addEventListener("click", confirmPhoto);
   els.retakeBtn.addEventListener("click", backToCamera);
   els.newPhotoBtn.addEventListener("click", backToCamera);
-  els.printBtn.addEventListener("click", print);
+  els.printBtn.addEventListener("click", printPhoto);
 
   // Kiosk shortcut: Space or Enter takes the photo
   document.addEventListener("keydown", (e) => {
