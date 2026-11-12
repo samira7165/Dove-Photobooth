@@ -3,7 +3,8 @@
    1. Loads a frame PNG and finds its transparent "window".
    2. Shows the live camera inside that window.
    3. On capture: draws the photo into the window, puts the frame on top,
-      and on OK uploads it to server.js and offers Print.
+      and on OK uploads it to server.js (which hands back a code) and offers Print.
+      Guests scan the QR code, or enter the code on /download, to get their photo.
       Saved photos are viewed, downloaded and deleted in /admin.
    ───────────────────────────────────────────────────────────── */
 
@@ -15,6 +16,9 @@ const CONFIG = {
   jpegQuality: 0.95,
   alphaThreshold: 20,       // pixels with alpha below this count as "window"
   cameraIdeal: { width: 1920, height: 1080 },
+  // Full address of the download page, used in the QR code. Leave empty to use
+  // this site's own address (or the Wi-Fi address when running on localhost).
+  downloadUrl: "",
 };
 
 const $ = (id) => document.getElementById(id);
@@ -25,6 +29,7 @@ const els = {
   shootPanel: $("shootPanel"), confirmPanel: $("confirmPanel"), resultPanel: $("resultPanel"),
   captureBtn: $("captureBtn"), okBtn: $("okBtn"), retakeBtn: $("retakeBtn"), saveError: $("saveError"),
   printBtn: $("printBtn"), newPhotoBtn: $("newPhotoBtn"),
+  photoCode: $("photoCode"), photoQr: $("photoQr"), downloadUrl: $("downloadUrl"),
   printImg: $("printImg"), work: $("work"),
 };
 
@@ -33,7 +38,8 @@ const state = {
   stream: null,
   resultBlob: null,   // photo waiting for OK / Retake
   resultUrl: null,
-  code: null,         // id of the saved photo on screen (for the dashboard)
+  code: null,         // code of the saved photo on screen
+  downloadPage: location.origin + "/download",
   busy: false,
 };
 
@@ -50,6 +56,33 @@ async function uploadPhoto(blob) {
   const r = await fetch("api/photos", { method: "POST", headers: { "Content-Type": "image/jpeg" }, body: blob });
   if (!r.ok) throw new Error("Upload failed: " + r.status);
   return (await r.json()).code;
+}
+
+async function setDownloadUrl() {
+  let page = CONFIG.downloadUrl;
+  if (!page) {
+    // Hosted online: this site's own address works for guests anywhere.
+    // Running on a laptop (localhost): use its Wi-Fi address instead.
+    let base = location.origin;
+    if (["localhost", "127.0.0.1"].includes(location.hostname)) {
+      try {
+        const info = await (await fetch("api/info")).json();
+        if (info.lan?.length) base = info.lan[0];
+      } catch {}
+    }
+    page = base + "/download";
+  }
+  state.downloadPage = page;
+  els.downloadUrl.textContent = page.replace(/^https?:\/\//, "");
+}
+
+// Code + QR code that opens the download page with the code filled in
+function showCode(code) {
+  els.photoCode.textContent = code;
+  const qr = qrcode(0, "M");
+  qr.addData(`${state.downloadPage}?code=${code}`);
+  qr.make();
+  els.photoQr.src = qr.createDataURL(8, 0);
 }
 
 /* ── Frame loading + automatic window detection ── */
@@ -91,14 +124,17 @@ async function setFrame(src) {
   const hole = findWindow(img) || { x: 0, y: 0, w: img.naturalWidth, h: img.naturalHeight };
   state.frame = { img, w: img.naturalWidth, h: img.naturalHeight, hole };
 
-  // Position the live camera exactly over the window (in % so it scales)
+  // Position the live camera exactly over the window (in % so it scales);
+  // the countdown shares the box so it can sit in the window's corner
   els.stage.style.setProperty("--ar", `${img.naturalWidth} / ${img.naturalHeight}`);
-  Object.assign(els.hole.style, {
+  const box = {
     left: (hole.x / img.naturalWidth) * 100 + "%",
     top: (hole.y / img.naturalHeight) * 100 + "%",
     width: (hole.w / img.naturalWidth) * 100 + "%",
     height: (hole.h / img.naturalHeight) * 100 + "%",
-  });
+  };
+  Object.assign(els.hole.style, box);
+  Object.assign(els.countdown.style, box);
   els.frameImg.src = img.src;
 }
 
@@ -217,6 +253,7 @@ async function confirmPhoto() {
   els.saveError.hidden = true;
   try {
     state.code = await uploadPhoto(state.resultBlob);
+    showCode(state.code);
     showStep("result");
   } catch (e) {
     console.error(e);
@@ -270,6 +307,7 @@ async function printPhoto() {
 async function init() {
   els.captureBtn.disabled = true;
   applyPreviewStyle();
+  setDownloadUrl();
 
   try {
     await setFrame(CONFIG.frame);

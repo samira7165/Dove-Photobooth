@@ -65,12 +65,13 @@ body {
   box-shadow: 0 1px 0 #0002, 0 18px 40px -18px #0006;
   overflow: hidden;
   transition: width 0.35s ease;
+  container-type: inline-size;   /* lets the countdown size itself to the template */
 }
 @supports (height: 100svh) {
   .stage { --fit-h: calc(100svh - var(--reserve)); }
 }
 .booth.is-result .stage {
-  --reserve: 190px;
+  --reserve: 330px;
   width: min(80%, calc(var(--fit-h) * var(--ar, 0.707)));
 }
 
@@ -105,14 +106,17 @@ body {
 }
 .result { background: var(--paper); }
 
+/* Top-right corner of the photo window (box set in app.js), clear of faces */
 .countdown {
   position: absolute;
-  inset: 0;
   display: grid;
-  place-items: center;
+  place-items: start end;
+  padding: 2% 4%;
   font-family: var(--f-sans);
   font-weight: 700;
-  font-size: clamp(90px, 22vw, 220px);
+  font-size: clamp(48px, 12cqw, 150px);
+  line-height: 1;
+  transform-origin: top right;
   color: var(--navy);
   text-shadow: 0 4px 0 #fff, 0 0 30px #fff8;   /* white edge keeps blue readable over the camera */
   pointer-events: none;
@@ -171,7 +175,62 @@ body {
 @media (hover: hover) { .btn-ghost:hover { background: #0000000a; } }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
-/* ── Masthead title (admin login) ── */
+/* ── Photo code + QR (booth, after OK) ── */
+.code-box {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 14px;
+  border: 1.5px solid var(--ink);
+  background: #fff;
+  padding: 12px 14px;
+}
+.code-qr {
+  display: block;
+  width: 112px;
+  height: 112px;
+  image-rendering: pixelated;   /* keep the squares crisp so phones scan it */
+}
+.code-label {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+}
+.code {
+  margin: 4px 0 6px;
+  font-family: var(--f-body);   /* upright, so digits can't be misread */
+  font-weight: 700;
+  font-size: 36px;
+  line-height: 1;
+  letter-spacing: 0.16em;
+  color: var(--navy);
+  user-select: all;
+}
+.code-help {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--muted);
+}
+.code-url { color: var(--ink); overflow-wrap: anywhere; }
+
+/* ── Download page ── */
+.lookup {
+  min-height: 100vh;
+  min-height: 100svh;
+  max-width: 460px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+  padding: 32px var(--gutter);
+  padding-bottom: max(32px, env(safe-area-inset-bottom, 0px));
+}
+
+/* ── Masthead title (download page + admin login) ── */
 .lookup-title {
   margin: 0;
   text-align: center;
@@ -194,11 +253,38 @@ body {
   border-bottom: 3px solid var(--gold);
   padding-bottom: 10px;
 }
+.lookup-form { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+.lookup-form .code-label { text-align: center; }
+.code-input {
+  width: 100%;
+  border: 2px solid var(--ink);
+  background: #fff;
+  color: var(--navy);
+  padding: 14px 12px;
+  text-align: center;
+  font: 700 34px/1 var(--f-body);
+  letter-spacing: 0.2em;
+}
+.code-input::placeholder { color: #0002; }
+.code-input:focus-visible { outline: 3px solid var(--navy); outline-offset: 3px; }
+.lookup-msg { margin: 0; min-height: 1.4em; text-align: center; font-size: 15px; color: var(--muted); }
+.lookup-msg.is-error { color: #9b2c1f; }
+.lookup-result { display: flex; flex-direction: column; gap: 14px; text-align: center; }
+.lookup-photo {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #fff;
+  box-shadow: 0 1px 0 #0002, 0 18px 40px -18px #0006;
+}
+.lookup-result .code-help { font-size: 14px; }
 a.btn { text-decoration: none; }
 
 /* ── Phones ── */
 @media (max-width: 520px) {
   .btn, .btn-ghost.btn-big { font-size: 16px; padding: 18px 12px; }
+  .code-qr { width: 96px; height: 96px; }
+  .code { font-size: 30px; }
 }
 
 /* ── Short landscape screens (phones held sideways): controls beside the template ── */

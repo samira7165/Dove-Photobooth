@@ -1,6 +1,6 @@
 # The Dove Times Photobooth
 
-The whole screen is the newspaper template. Tap **Take photo**, the photo drops into the frame, then **Print** it. Every photo is saved to the admin dashboard, where staff can view, download (one, several or all) and delete them. Guests don't download anything themselves.
+The whole screen is the newspaper template. Tap **Take photo**, the photo drops into the frame, then **Print** it. Every photo gets a 6-digit code. After **OK** the booth shows the code and a QR code: guests scan it, or enter the code on the **/download** page, to get their photo on their phone. Staff view, download (one, several or all) and delete photos in the admin dashboard.
 
 ## Run it
 
@@ -11,9 +11,11 @@ cd dove-photobooth
 node server.js
 ```
 
-It prints two addresses:
+It prints these addresses:
 
 - **http://localhost:8000** opens the booth on this computer. Allow camera access. (The camera only works on `localhost` or `https://`, so use this address for the booth.)
+- **http://localhost:8000/download** is the guest download page.
+- **Download (Wi-Fi)** is the same page at this computer's Wi-Fi address. The booth puts this address in the QR code, so guests' phones must be on the same Wi-Fi.
 - **http://localhost:8000/admin** opens the admin dashboard.
 
 Photos are saved in `photos/` as `CODE.jpg` (a 6-digit number). Delete them from the dashboard, or clear that folder after the event.
@@ -73,7 +75,8 @@ Accounts, sessions and analytics are kept in `data/` (`users.json`, `db.json`). 
 3. The live camera is shown inside that slot, with the frame on top, so people see exactly what they'll get.
 4. On capture: 3-2-1 countdown, the camera frame is drawn into the slot ("cover" fit, centred), the tone is applied, then the frame is drawn on top.
 5. **Retake** or **OK**. On OK the framed photo is uploaded to `server.js`, which saves it under a unique 6-digit number, so it shows up in the dashboard.
-6. The booth then shows **Print** (only the final image, edge to edge on A4) and **Take another photo**.
+6. The booth then shows **Print** (only the final image, edge to edge on A4), the photo's code with a QR code, and **Take another photo**.
+7. The QR code opens `/download?code=CODE`, which shows the photo with a **Download** button. Guests can also type the code there. After 30 wrong codes in 10 minutes from one address, lookups are paused, so codes can't be guessed one by one.
 
 ## Changing the frame
 
@@ -94,6 +97,7 @@ Frame tips:
 | `mirror` | `true` flips the camera like a mirror (selfie view) |
 | `jpegQuality` | 0–1, output quality |
 | `alphaThreshold` | How transparent a pixel must be to count as "window" |
+| `downloadUrl` | Full address of the download page for the QR code. Empty uses the site's own address (or the Wi-Fi address on localhost) |
 
 Keyboard: **Space** or **Enter** takes the photo (handy for kiosks with a big button mapped to a key).
 

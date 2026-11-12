@@ -1,10 +1,12 @@
 /* ─────────────────────────────────────────────────────────────
    The Dove Times Photobooth server
-   Pages:  /  booth · /admin  dashboard (view, download, delete photos)
+   Pages:  /  booth · /download  guest download · /admin  dashboard
 
-   Public API (used by the booth)
+   Public API (used by the booth and the download page)
    - POST /api/photos        saves a photo, returns { code }
+   - GET  /api/photos/CODE   returns that photo as a JPG
    - POST /api/track         { type: "print", code }
+   - GET  /api/info          the Wi-Fi address guests' phones can open
 
    Admin API (login required; role in brackets)
    - POST   /api/admin/login · /api/admin/logout · GET /api/admin/me
@@ -25,6 +27,7 @@ const http = require("node:http");
 const fs = require("node:fs");
 const fsp = require("node:fs/promises");
 const path = require("node:path");
+const os = require("node:os");
 const crypto = require("node:crypto");
 const { createDb } = require("./lib/db");
 const { createAuth } = require("./lib/auth");
@@ -47,6 +50,10 @@ const CODE_ALPHABET = "0123456789"; // new codes are numbers only
 // Also accepts older letter codes so photos saved before still work
 const CODE_RE = new RegExp(`^[A-Z0-9]{${CODE_LENGTH}}$`);
 const PUBLIC_EVENTS = ["print"];
+// A photo is only protected by its code, so slow down anyone guessing codes.
+// Generous, because guests at the event often share one internet address.
+const LOOKUP_MAX_FAILS = 30;
+const LOOKUP_WINDOW_MS = 10 * 60 * 1000;
 
 // Only these file types are served; server code and data never are
 const TYPES = {
@@ -79,6 +86,35 @@ function newCode() {
     code = Array.from(crypto.randomBytes(CODE_LENGTH), (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join("");
   } while (db.hasPhoto(code) || fs.existsSync(photoPath(code)));
   return code;
+}
+
+// Wi-Fi / LAN addresses, so guests' phones can reach the download page
+// Wi-Fi first; virtual adapters (VirtualBox's 192.168.56.x, WSL, Docker…) last,
+// since phones can't reach those.
+function lanUrls() {
+  const virtual = /virtual|vbox|vmware|vethernet|hyper-v|wsl|docker/i;
+  const rank = ({ name, address }) =>
+    /wi-?fi|wlan|wireless/i.test(name) ? 0 :
+    virtual.test(name) || address.startsWith("192.168.56.") ? 2 : 1;
+  return Object.entries(os.networkInterfaces())
+    .flatMap(([name, addrs]) => addrs.map((a) => ({ ...a, name })))
+    .filter((a) => a.family === "IPv4" && !a.internal)
+    .sort((a, b) => rank(a) - rank(b))
+    .map((a) => `http://${a.address}:${PORT}`);
+}
+
+// Wrong codes per address: ip → { count, since }
+const lookupFails = new Map();
+function lookupBlocked(ip) {
+  const f = lookupFails.get(ip);
+  if (f && Date.now() - f.since > LOOKUP_WINDOW_MS) lookupFails.delete(ip);
+  return (lookupFails.get(ip)?.count || 0) >= LOOKUP_MAX_FAILS;
+}
+function lookupFailed(ip) {
+  if (lookupFails.size > 10000) lookupFails.clear();   // never grows without bound
+  const f = lookupFails.get(ip) || { count: 0, since: Date.now() };
+  f.count++;
+  lookupFails.set(ip, f);
 }
 
 /* ── HTTP helpers ── */
@@ -141,11 +177,30 @@ async function handlePublicApi(req, res, url) {
     return send(res, 201, { code });
   }
 
+  const m = url.pathname.match(/^\/api\/photos\/([^/]+)$/);
+  if (req.method === "GET" && m) {
+    const ip = clientIp(req);
+    if (lookupBlocked(ip)) return send(res, 429, { error: "Too many tries." });
+    const code = decodeURIComponent(m[1]).toUpperCase();
+    try {
+      if (!CODE_RE.test(code)) throw new Error("bad code");
+      const data = await fsp.readFile(photoPath(code));
+      return send(res, 200, data, "image/jpeg");
+    } catch {
+      lookupFailed(ip);
+      return send(res, 404, { error: "Not found." });
+    }
+  }
+
   if (req.method === "POST" && url.pathname === "/api/track") {
     const { type, code } = await readJson(req);
     if (!PUBLIC_EVENTS.includes(type)) return send(res, 400, { error: "Unknown event." });
     db.track(type, typeof code === "string" && CODE_RE.test(code) ? code : null);
     return send(res, 204, "");
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/info") {
+    return send(res, 200, { lan: lanUrls() });
   }
 
   return send(res, 404, { error: "Not found." });
@@ -275,7 +330,7 @@ async function handleStatic(req, res, url) {
   if (req.method !== "GET" && req.method !== "HEAD") return send(res, 405, "Method not allowed", "text/plain");
   let rel = decodeURIComponent(url.pathname);
   if (rel.endsWith("/")) rel += "index.html";
-  else if (!path.extname(rel)) rel += ".html";   // clean URLs: /admin → admin.html
+  else if (!path.extname(rel)) rel += ".html";   // clean URLs: /download → download.html
 
   if (sea) {
     // Inside the exe only the page files are packed in, so nothing private can be served
@@ -325,7 +380,9 @@ const server = http.createServer(async (req, res) => {
   }
 }).listen(PORT, () => {
   console.log(`\nPhotobooth:       http://localhost:${PORT}`);
+  console.log(`Download page:    http://localhost:${PORT}/download`);
   console.log(`Admin dashboard:  http://localhost:${PORT}/admin`);
+  for (const u of lanUrls()) console.log(`Download (Wi-Fi):  ${u}/download`);
   console.log(`Photos are saved in: ${PHOTOS}`);
   console.log(`Data is saved in:    ${DATA}\n`);
   if (firstAdmin) {
